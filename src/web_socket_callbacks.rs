@@ -15,6 +15,7 @@ impl<TCustomData: Send + Sync + 'static> my_http_server_web_sockets::MyWebSockeC
     for WebSocketCallbacks<TCustomData>
 {
     async fn connected(&self, my_web_socket: Arc<MyWebSocket>) -> Result<(), HttpFailResult> {
+        #[cfg(feature = "debug_ws")]
         println!("connected web_socket:{}", my_web_socket.id);
 
         if let Some(query_string) = my_web_socket.get_query_string() {
@@ -38,6 +39,7 @@ impl<TCustomData: Send + Sync + 'static> my_http_server_web_sockets::MyWebSockeC
     }
 
     async fn disconnected(&self, my_web_socket: Arc<MyWebSocket>) {
+        #[cfg(feature = "debug_ws")]
         println!("disconnected web_socket:{}", my_web_socket.id);
         let find_result = self
             .socket_io_list
@@ -49,6 +51,9 @@ impl<TCustomData: Send + Sync + 'static> my_http_server_web_sockets::MyWebSockeC
         }
     }
     async fn on_message(&self, my_web_socket: Arc<MyWebSocket>, message: WebSocketMessage) {
+        #[cfg(feature = "debug_ws")]
+        println!("Websocket{}, MSG: {:?}", my_web_socket.id, message);
+
         if let WebSocketMessage::String(value) = &message {
             if value == "2probe" {
                 my_web_socket
