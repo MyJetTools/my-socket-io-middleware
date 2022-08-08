@@ -40,9 +40,13 @@ impl<TCustomData: Send + Sync + 'static> MySocketIoConnection<TCustomData> {
         }
     }
 
-    pub async fn has_web_socket(&self) -> bool {
+    pub async fn has_web_socket(&self, web_socket_id: i64) -> bool {
         let read_access = self.single_threaded.lock().await;
-        read_access.web_socket.is_some()
+        if let Some(web_socket) = &read_access.web_socket {
+            return web_socket.id == web_socket_id;
+        }
+
+        false
     }
 
     pub async fn add_web_socket(&self, web_socket: Arc<MyWebSocket>) {
