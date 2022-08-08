@@ -6,9 +6,9 @@ pub enum MySocketIoTextData {
 }
 
 pub struct MySocketIoTextMessage {
-    nsp: Option<String>,
-    data: MySocketIoTextData,
-    id: Option<String>,
+    pub nsp: Option<String>,
+    pub data: MySocketIoTextData,
+    pub id: Option<String>,
 }
 
 pub enum MySocketIoMessage {
