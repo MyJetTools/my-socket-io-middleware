@@ -67,6 +67,6 @@ mod test {
             data: MySocketIoTextData::Json(json_writer),
             id: None,
         });
-        assert_eq!(msg.to_string(), "42[\"Test1\", \"Test2\"]");
+        assert_eq!(msg.to_string(), "42[\"Test1\",\"Test2\"]");
     }
 }
