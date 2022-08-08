@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hyper_tungstenite::tungstenite::Message;
 use my_http_server_web_sockets::MyWebSocket;
 use rust_extensions::TaskCompletion;
 use tokio::sync::Mutex;
@@ -47,6 +48,19 @@ impl<TCustomData: Send + Sync + 'static> MySocketIoConnection<TCustomData> {
         }
 
         false
+    }
+
+    pub async fn send_message(&self, message: MySocketIoMessage) {
+        let web_socket = {
+            let read_access = self.single_threaded.lock().await;
+            read_access.web_socket.clone()
+        };
+
+        if let Some(web_socket) = web_socket {
+            web_socket
+                .send_message(Message::Text(message.to_string()))
+                .await;
+        }
     }
 
     pub async fn add_web_socket(&self, web_socket: Arc<MyWebSocket>) {
