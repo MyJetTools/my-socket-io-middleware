@@ -9,6 +9,6 @@ mod web_socket_callbacks;
 pub use middleware::*;
 pub use my_socket_io_callbacks::MySocketIoCallbacks;
 pub use my_socket_io_connection::MySocketIoConnection;
-pub use my_socket_io_message::MySocketIoMessage;
+pub use my_socket_io_message::*;
 pub use socket_io_list::SocketIoList;
 pub use web_socket_callbacks::WebSocketCallbacks;

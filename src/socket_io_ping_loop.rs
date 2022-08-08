@@ -12,12 +12,6 @@ pub async fn start(socket: Arc<MyWebSocket>) {
             .send_message(Message::Text(MySocketIoMessage::Ping.to_string()))
             .await;
 
-        socket
-            .send_message(Message::Text(
-                MySocketIoMessage::Message("[\"test\", \"test2\"]".to_string()).to_string(),
-            ))
-            .await;
-
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
 

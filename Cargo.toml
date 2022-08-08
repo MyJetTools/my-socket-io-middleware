@@ -9,7 +9,7 @@ edition = "2021"
 my-http-server = { branch = "0.2.6", git = "https://github.com/MyJetTools/my-http-server.git" }
 my-http-server-web-sockets = { branch = "0.1.0", git = "https://github.com/MyJetTools/my-http-server-web-sockets.git" }
 rust-extensions = { branch = "0.1.1", git = "https://github.com/MyJetTools/rust-extensions.git" }
-
+my-json = { branch = "0.1.0", git = "https://github.com/MyJetTools/my-json.git" }
 tokio = { version = "*", features = ["full"] }
 async-trait = "*"
 hyper = { version = "*", features = ["full"] }
