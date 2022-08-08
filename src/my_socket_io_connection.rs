@@ -50,7 +50,7 @@ impl<TCustomData: Send + Sync + 'static> MySocketIoConnection<TCustomData> {
         false
     }
 
-    pub async fn send_message(&self, message: MySocketIoMessage) {
+    pub async fn send_message(&self, message: &MySocketIoMessage) {
         let web_socket = {
             let read_access = self.single_threaded.lock().await;
             read_access.web_socket.clone()

@@ -19,7 +19,7 @@ pub enum MySocketIoMessage {
 }
 
 impl MySocketIoMessage {
-    pub fn to_string(self) -> String {
+    pub fn to_string(&self) -> String {
         match self {
             MySocketIoMessage::Ping => "2".to_string(),
             MySocketIoMessage::Pong => "3".to_string(),
@@ -37,10 +37,10 @@ impl MySocketIoMessage {
                     result.extend_from_slice(id.as_bytes());
                 }
 
-                match msg.data {
+                match &msg.data {
                     MySocketIoTextData::Raw(raw) => result.extend_from_slice(raw.as_bytes()),
                     MySocketIoTextData::Json(json_writer) => {
-                        result.extend_from_slice(json_writer.build().as_slice());
+                        json_writer.build_into(&mut result);
                     }
                 };
                 String::from_utf8(result).unwrap()
