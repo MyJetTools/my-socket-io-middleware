@@ -49,8 +49,6 @@ impl<TCustomData: Send + Sync + 'static> my_http_server_web_sockets::MyWebSockeC
         }
     }
     async fn on_message(&self, my_web_socket: Arc<MyWebSocket>, message: WebSocketMessage) {
-        println!("Websocket{}, MSG: {:?}", my_web_socket.id, message);
-
         if let WebSocketMessage::String(value) = &message {
             if value == "2probe" {
                 my_web_socket
