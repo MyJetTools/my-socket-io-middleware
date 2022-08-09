@@ -130,9 +130,11 @@ async fn handle_get_request<TCustomData: Sync + Send + Default + 'static>(
 }
 
 fn handle_post_request(ctx: &mut HttpContext) -> Result<HttpOkResult, HttpFailResult> {
-    let query = ctx.request.get_query_string()?;
-
-    let sid = query.get_required("sid")?;
-    println!("Post with Id:{}", sid.value);
-    HttpOutput::Empty.into_ok_result(false).into()
+    return HttpOutput::Content {
+        headers: None,
+        content_type: Some(WebContentType::Text),
+        content: "5".to_string().into_bytes(),
+    }
+    .into_ok_result(true)
+    .into();
 }
