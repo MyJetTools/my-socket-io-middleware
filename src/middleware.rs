@@ -94,7 +94,10 @@ async fn handle_get_request<TCustomData: Sync + Send + Default + 'static>(
     let sid = query.get_optional("sid");
 
     if let Some(sid) = sid {
-        println!("Get with Id:{}", sid.value);
+        let mut response = Vec::new();
+        response.extend_from_slice("40{\"sid\":\"".as_bytes());
+        response.extend_from_slice(sid.value.as_bytes());
+        response.extend_from_slice("\"}".as_bytes());
 
         return Some(
             HttpOutput::Content {
@@ -129,11 +132,11 @@ async fn handle_get_request<TCustomData: Sync + Send + Default + 'static>(
     }
 }
 
-fn handle_post_request(ctx: &mut HttpContext) -> Result<HttpOkResult, HttpFailResult> {
+fn handle_post_request(_ctx: &mut HttpContext) -> Result<HttpOkResult, HttpFailResult> {
     return HttpOutput::Content {
         headers: None,
         content_type: Some(WebContentType::Text),
-        content: "5".to_string().into_bytes(),
+        content: "ok".to_string().into_bytes(),
     }
     .into_ok_result(true)
     .into();
