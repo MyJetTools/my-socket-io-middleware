@@ -81,7 +81,7 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
             let sid = query_string.get_optional("sid");
 
             if sid.is_none() {
-                let result = crate::process_connect(
+                let (socket_io, response) = crate::process_connect(
                     &self.connections_callback,
                     &self.socket_io_list,
                     &self.settings,
@@ -89,7 +89,14 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
                 )
                 .await;
 
-                my_web_socket.send_message(Message::Text(result)).await;
+                my_web_socket.send_message(Message::Text(response)).await;
+
+                tokio::spawn(super::socket_io_livness_loop::start(
+                    self.connections_callback.clone(),
+                    self.socket_io_list.clone(),
+                    socket_io,
+                    self.settings.get_ping_timeout(),
+                ));
                 return Ok(());
             }
 

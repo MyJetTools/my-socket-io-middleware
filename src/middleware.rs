@@ -135,7 +135,7 @@ async fn handle_get_request(
             .into(),
         );
     } else {
-        let result =
+        let (_, result) =
             crate::process_connect(connections_callback, socket_io_list, settings, None).await;
 
         let result = HttpOutput::Content {

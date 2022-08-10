@@ -9,7 +9,7 @@ pub async fn process_connect(
     socket_io_list: &Arc<SocketIoList>,
     settings: &Arc<SocketIoSettings>,
     web_socket: Option<Arc<MyWebSocket>>,
-) -> String {
+) -> (Arc<MySocketIoConnection>, String) {
     let sid = uuid::Uuid::new_v4().to_string();
 
     let sid = sid.replace("-", "")[..8].to_string();
@@ -24,7 +24,9 @@ pub async fn process_connect(
         .await
         .unwrap();
 
-    socket_io_list.add_socket_io(socket_io_connection).await;
+    socket_io_list
+        .add_socket_io(socket_io_connection.clone())
+        .await;
 
-    result
+    (socket_io_connection, result)
 }
