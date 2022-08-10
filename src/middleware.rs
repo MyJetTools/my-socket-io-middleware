@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use hyper::Method;
 use my_http_server::{
@@ -7,23 +7,47 @@ use my_http_server::{
 };
 use tokio::sync::Mutex;
 
-use crate::{MySocketIoConnection, SocketIoList, WebSocketCallbacks};
+use crate::{
+    MySocketIo, MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList,
+    WebSocketCallbacks,
+};
 
-pub struct MySocketIoMiddleware<TCustomData: Sync + Send + Default + 'static> {
+pub struct MySocketIoEngineMiddleware {
     pub path_prefix: String,
     socket_id: Mutex<i64>,
-    web_socket_callback: Arc<WebSocketCallbacks<TCustomData>>,
-    socket_io_list: Arc<dyn SocketIoList<TCustomData> + Send + Sync + 'static>,
+    web_socket_callback: Arc<WebSocketCallbacks>,
+    socket_io_list: Arc<SocketIoList>,
+    registered_sockets: Arc<Mutex<HashMap<String, Arc<dyn MySocketIo + Send + Sync + 'static>>>>,
+    connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
 }
 
-impl<TCustomData: Sync + Send + Default + 'static> MySocketIoMiddleware<TCustomData> {
-    pub fn new(socket_io_list: Arc<dyn SocketIoList<TCustomData> + Send + Sync + 'static>) -> Self {
+impl MySocketIoEngineMiddleware {
+    pub fn new(
+        connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
+    ) -> Self {
+        let registered_sockets = Arc::new(Mutex::new(HashMap::new()));
+        let socket_io_list = Arc::new(SocketIoList::new());
         Self {
             socket_io_list: socket_io_list.clone(),
+
             path_prefix: "/socket.io/".to_string(),
-            web_socket_callback: Arc::new(WebSocketCallbacks { socket_io_list }),
+            web_socket_callback: Arc::new(WebSocketCallbacks {
+                socket_io_list,
+                registered_sockets: registered_sockets.clone(),
+            }),
             socket_id: Mutex::new(0),
+            registered_sockets,
+            connections_callback,
         }
+    }
+
+    pub async fn register_socket_io(
+        &self,
+        namespace: String,
+        socket_io: Arc<dyn MySocketIo + Send + Sync + 'static>,
+    ) {
+        let mut write_access = self.registered_sockets.lock().await;
+        write_access.insert(namespace, socket_io);
     }
 
     async fn get_socket_id(&self) -> i64 {
@@ -34,9 +58,7 @@ impl<TCustomData: Sync + Send + Default + 'static> MySocketIoMiddleware<TCustomD
 }
 
 #[async_trait::async_trait]
-impl<TCustomData: Sync + Send + Default + 'static> HttpServerMiddleware
-    for MySocketIoMiddleware<TCustomData>
-{
+impl HttpServerMiddleware for MySocketIoEngineMiddleware {
     async fn handle_request(
         &self,
         ctx: &mut HttpContext,
@@ -66,7 +88,9 @@ impl<TCustomData: Sync + Send + Default + 'static> HttpServerMiddleware
         }
 
         if ctx.request.method == Method::GET {
-            if let Some(result) = handle_get_request(ctx, &self.socket_io_list).await {
+            if let Some(result) =
+                handle_get_request(ctx, &self.connections_callback, &self.socket_io_list).await
+            {
                 return result;
             }
         }
@@ -79,9 +103,10 @@ impl<TCustomData: Sync + Send + Default + 'static> HttpServerMiddleware
     }
 }
 
-async fn handle_get_request<TCustomData: Sync + Send + Default + 'static>(
+async fn handle_get_request(
     ctx: &mut HttpContext,
-    socket_io_list: &Arc<dyn SocketIoList<TCustomData> + Send + Sync + 'static>,
+    connections_callback: &Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
+    socket_io_list: &Arc<SocketIoList>,
 ) -> Option<Result<HttpOkResult, HttpFailResult>> {
     let query = ctx.request.get_query_string();
 
@@ -112,13 +137,18 @@ async fn handle_get_request<TCustomData: Sync + Send + Default + 'static>(
         let sid = uuid::Uuid::new_v4().to_string();
 
         let sid = sid.replace("-", "")[..8].to_string();
-        println!("Create new Id:{}", sid);
 
         let result = super::models::compile_negotiate_response(sid.as_str());
 
-        let socket_io = MySocketIoConnection::new(sid, TCustomData::default());
+        let socket_io = MySocketIoConnection::new(sid);
+        let socket_io_connection = Arc::new(socket_io);
 
-        socket_io_list.add(Arc::new(socket_io)).await;
+        connections_callback
+            .connected(socket_io_connection.clone())
+            .await
+            .unwrap();
+
+        socket_io_list.add_socket_io(socket_io_connection).await;
 
         let result = HttpOutput::Content {
             headers: None,

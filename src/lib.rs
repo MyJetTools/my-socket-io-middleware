@@ -1,14 +1,16 @@
 mod middleware;
 mod models;
-mod my_socket_io_callbacks;
+mod my_socket_io;
 mod my_socket_io_connection;
+mod my_socket_io_connections_callbacks;
 mod my_socket_io_message;
 mod socket_io_list;
 mod socket_io_ping_loop;
 mod web_socket_callbacks;
 pub use middleware::*;
-pub use my_socket_io_callbacks::MySocketIoCallbacks;
+pub use my_socket_io::*;
 pub use my_socket_io_connection::MySocketIoConnection;
+pub use my_socket_io_connections_callbacks::MySocketIoConnectionsCallbacks;
 pub use my_socket_io_message::*;
 pub use socket_io_list::SocketIoList;
 pub use web_socket_callbacks::WebSocketCallbacks;

@@ -2,33 +2,38 @@ use std::sync::Arc;
 
 use hyper_tungstenite::tungstenite::Message;
 use my_http_server_web_sockets::MyWebSocket;
-use rust_extensions::TaskCompletion;
+use rust_extensions::{
+    date_time::{AtomicDateTimeAsMicroseconds, DateTimeAsMicroseconds},
+    TaskCompletion,
+};
 use tokio::sync::Mutex;
 
 use crate::MySocketIoMessage;
 
-pub struct MySocketIoSingleThreaded<TCustomData: Send + Sync + 'static> {
+pub struct MySocketIoSingleThreaded {
     web_socket: Option<Arc<MyWebSocket>>,
     long_pooling: Option<TaskCompletion<String, String>>,
     updgraded_to_websocket: bool,
-    pub custom_data: TCustomData,
 }
 
-pub struct MySocketIoConnection<TCustomData: Send + Sync + 'static> {
-    single_threaded: Mutex<MySocketIoSingleThreaded<TCustomData>>,
+pub struct MySocketIoConnection {
+    single_threaded: Mutex<MySocketIoSingleThreaded>,
     pub id: String,
+    pub created: DateTimeAsMicroseconds,
+    pub last_incoming_moment: AtomicDateTimeAsMicroseconds,
 }
 
-impl<TCustomData: Send + Sync + 'static> MySocketIoConnection<TCustomData> {
-    pub fn new(id: String, custom_data: TCustomData) -> Self {
+impl MySocketIoConnection {
+    pub fn new(id: String) -> Self {
         Self {
             single_threaded: Mutex::new(MySocketIoSingleThreaded {
                 web_socket: None,
                 long_pooling: None,
                 updgraded_to_websocket: false,
-                custom_data,
             }),
             id,
+            created: DateTimeAsMicroseconds::now(),
+            last_incoming_moment: AtomicDateTimeAsMicroseconds::now(),
         }
     }
 
