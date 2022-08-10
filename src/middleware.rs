@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use hyper::Method;
 use my_http_server::{
@@ -8,7 +8,8 @@ use my_http_server::{
 use tokio::sync::Mutex;
 
 use crate::{
-    MySocketIo, MySocketIoConnectionsCallbacks, SocketIoList, SocketIoSettings, WebSocketCallbacks,
+    namespaces::SocketIoNameSpaces, MySocketIo, MySocketIoConnectionsCallbacks, SocketIoList,
+    SocketIoSettings, WebSocketCallbacks,
 };
 
 pub struct MySocketIoEngineMiddleware {
@@ -16,7 +17,7 @@ pub struct MySocketIoEngineMiddleware {
     socket_id: Mutex<i64>,
     web_socket_callback: Arc<WebSocketCallbacks>,
     socket_io_list: Arc<SocketIoList>,
-    registered_sockets: Arc<Mutex<HashMap<String, Arc<dyn MySocketIo + Send + Sync + 'static>>>>,
+    registered_sockets: Arc<SocketIoNameSpaces>,
     connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
     pub settings: Arc<SocketIoSettings>,
 }
@@ -25,7 +26,7 @@ impl MySocketIoEngineMiddleware {
     pub fn new(
         connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
     ) -> Self {
-        let registered_sockets = Arc::new(Mutex::new(HashMap::new()));
+        let registered_sockets = Arc::new(SocketIoNameSpaces::new());
         let socket_io_list = Arc::new(SocketIoList::new());
         let settings = Arc::new(SocketIoSettings::default());
         Self {
@@ -46,8 +47,7 @@ impl MySocketIoEngineMiddleware {
     }
 
     pub async fn register_socket_io(&self, socket_io: Arc<dyn MySocketIo + Send + Sync + 'static>) {
-        let mut write_access = self.registered_sockets.lock().await;
-        write_access.insert(socket_io.get_nsp().to_string(), socket_io);
+        self.registered_sockets.add(socket_io).await;
     }
 
     async fn get_socket_id(&self) -> i64 {

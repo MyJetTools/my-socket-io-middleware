@@ -3,6 +3,7 @@ mod my_socket_io;
 mod my_socket_io_connection;
 mod my_socket_io_connections_callbacks;
 pub mod my_socket_io_messages;
+mod namespaces;
 mod process_connect;
 mod process_disconnect;
 mod socket_io_list;

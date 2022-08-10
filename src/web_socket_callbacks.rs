@@ -1,43 +1,43 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use hyper_tungstenite::tungstenite::Message;
 use my_http_server::HttpFailResult;
 use my_http_server_web_sockets::{MyWebSocket, WebSocketMessage};
 use my_json::json_reader::array_parser::ArrayToJsonObjectsSplitter;
-use tokio::sync::Mutex;
 
 use crate::{
-    my_socket_io_messages::MySocketIoMessage, my_socket_io_messages::MySocketIoTextPayload,
-    MySocketIo, MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList,
-    SocketIoSettings,
+    my_socket_io_messages::MySocketIoMessage,
+    my_socket_io_messages::{GrandAccessData, MySocketIoTextPayload},
+    namespaces::SocketIoNameSpaces,
+    MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList, SocketIoSettings,
 };
+
+const DEFAULT_NAMESPACE: &str = "/";
+
+fn get_nsp(value: &Option<String>) -> &str {
+    if let Some(nsp) = &value {
+        nsp
+    } else {
+        DEFAULT_NAMESPACE
+    }
+}
 
 pub struct WebSocketCallbacks {
     pub socket_io_list: Arc<SocketIoList>,
-    pub registered_sockets:
-        Arc<Mutex<HashMap<String, Arc<dyn MySocketIo + Send + Sync + 'static>>>>,
+    pub registered_sockets: Arc<SocketIoNameSpaces>,
     pub connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
     pub settings: Arc<SocketIoSettings>,
 }
 
 impl WebSocketCallbacks {
-    async fn find_socket_by_name_space(
-        &self,
-        name_space: &str,
-    ) -> Option<Arc<dyn MySocketIo + Send + Sync + 'static>> {
-        let read_access = self.registered_sockets.lock().await;
-
-        let result = read_access.get(name_space)?;
-        Some(result.clone())
-    }
     async fn callback_message(
         &self,
         socket_io: &Arc<MySocketIoConnection>,
         msg: MySocketIoTextPayload,
     ) {
-        let nsp_str = if let Some(nsp) = &msg.nsp { nsp } else { "/" };
+        let nsp_str = get_nsp(&msg.nsp);
 
-        if let Some(socket) = self.find_socket_by_name_space(nsp_str).await {
+        if let Some(socket) = self.registered_sockets.get(nsp_str).await {
             let mut event_name = None;
             let mut event_data = None;
 
@@ -173,10 +173,29 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
             }
 
             if let Some(message) = MySocketIoMessage::parse(value.as_str()) {
-                if let MySocketIoMessage::Message(message) = message {
-                    if let Some(socket_io_connection) = socket_io.as_ref() {
-                        self.callback_message(socket_io_connection, message).await;
+                match message {
+                    MySocketIoMessage::Message(message) => {
+                        if let Some(socket_io_connection) = socket_io.as_ref() {
+                            self.callback_message(socket_io_connection, message).await;
+                        }
                     }
+                    MySocketIoMessage::RequestAccess(nsp) => {
+                        if let Some(socket_io_connection) = socket_io.as_ref() {
+                            let nsp_str = get_nsp(&nsp);
+
+                            if self.registered_sockets.has_nsp(nsp_str).await {
+                                let granted_message =
+                                    MySocketIoMessage::GrandAccess(GrandAccessData {
+                                        nsp,
+                                        sid: socket_io_connection.id.clone(),
+                                    });
+
+                                socket_io_connection.send_message(&granted_message).await;
+                            }
+                        }
+                    }
+
+                    _ => {}
                 }
             }
         }
