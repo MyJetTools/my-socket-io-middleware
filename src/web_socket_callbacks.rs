@@ -96,6 +96,7 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
                     self.socket_io_list.clone(),
                     socket_io,
                     self.settings.get_ping_timeout(),
+                    self.settings.get_ping_interval(),
                 ));
                 return Ok(());
             }
@@ -113,6 +114,7 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
                         self.socket_io_list.clone(),
                         socket_io,
                         self.settings.get_ping_timeout(),
+                        self.settings.get_ping_interval(),
                     ));
                 }
                 None => {
