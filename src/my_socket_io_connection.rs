@@ -27,6 +27,7 @@ pub struct MySocketIoConnection {
 
 impl MySocketIoConnection {
     pub fn new(id: String, web_socket: Option<Arc<MyWebSocket>>) -> Self {
+        let has_web_socket = web_socket.is_some();
         Self {
             single_threaded: Mutex::new(MySocketIoSingleThreaded {
                 web_socket,
@@ -37,7 +38,7 @@ impl MySocketIoConnection {
             created: DateTimeAsMicroseconds::now(),
             last_incoming_moment: AtomicDateTimeAsMicroseconds::now(),
             connected: AtomicBool::new(true),
-            has_web_socket: AtomicBool::new(false),
+            has_web_socket: AtomicBool::new(has_web_socket),
         }
     }
 
