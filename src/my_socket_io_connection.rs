@@ -67,6 +67,11 @@ impl MySocketIoConnection {
         false
     }
 
+    pub async fn get_web_socket(&self) -> Option<Arc<MyWebSocket>> {
+        let read_access = self.single_threaded.lock().await;
+        read_access.web_socket.clone()
+    }
+
     pub fn update_incoming_activity(&self) {
         self.last_incoming_moment
             .update(DateTimeAsMicroseconds::now());

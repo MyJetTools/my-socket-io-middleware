@@ -25,11 +25,18 @@ impl SocketIoList {
     }
 
     pub async fn add_socket_io(&self, socket_io_connection: Arc<MySocketIoConnection>) {
+        let web_socket = socket_io_connection.get_web_socket().await;
         let mut write_access = self.sockets.write().await;
         write_access.sockets_by_my_socket_io_id.insert(
             socket_io_connection.id.clone(),
             socket_io_connection.clone(),
         );
+
+        if let Some(web_socket) = web_socket {
+            write_access
+                .sockets_by_web_socket_id
+                .insert(web_socket.id, socket_io_connection.clone());
+        }
     }
 
     pub async fn assign_web_socket_to_socket_io(
