@@ -2,13 +2,19 @@ use rust_extensions::StrOrString;
 
 use super::MySocketIoTextPayload;
 
+pub struct GrandAccessData {
+    pub nsp: Option<String>,
+    pub sid: String,
+}
+
 pub enum MySocketIoMessage {
     Ping,
     Pong,
     Disconnect,
     Message(MySocketIoTextPayload),
     Ack(MySocketIoTextPayload),
-    Connect(Option<String>),
+    RequestAccess(Option<String>),
+    GrandAccess(GrandAccessData),
 }
 
 impl MySocketIoMessage {
@@ -29,7 +35,7 @@ impl MySocketIoMessage {
                 msg.serialize(&mut result);
                 StrOrString::crate_as_string(String::from_utf8(result).unwrap())
             }
-            MySocketIoMessage::Connect(nsp) => {
+            MySocketIoMessage::RequestAccess(nsp) => {
                 if let Some(nsp) = nsp {
                     let mut result = Vec::new();
                     result.extend_from_slice("40".as_bytes());
@@ -39,6 +45,18 @@ impl MySocketIoMessage {
                 } else {
                     StrOrString::crate_as_str("40")
                 }
+            }
+            MySocketIoMessage::GrandAccess(data) => {
+                let mut result = Vec::new();
+                result.extend_from_slice("40".as_bytes());
+                if let Some(nsp) = &data.nsp {
+                    result.extend_from_slice(nsp.as_bytes());
+                    result.push(b',');
+                }
+                result.extend_from_slice("{\"sid\":\"".as_bytes());
+                result.extend_from_slice(data.sid.as_bytes());
+                result.extend_from_slice("\"}".as_bytes());
+                StrOrString::crate_as_string(String::from_utf8(result).unwrap())
             }
         }
     }
@@ -54,10 +72,10 @@ impl MySocketIoMessage {
 
         if str.starts_with("40") {
             if str == "40" {
-                return Some(Self::Connect(None));
+                return Some(Self::RequestAccess(None));
             }
 
-            return Some(Self::Connect(Some(str[2..str.len() - 1].to_string())));
+            return Some(Self::RequestAccess(Some(str[2..str.len() - 1].to_string())));
         }
 
         None
@@ -101,10 +119,10 @@ mod test {
 
     #[test]
     fn test_connect_message() {
-        let connect_message = MySocketIoMessage::Connect(None);
+        let connect_message = MySocketIoMessage::RequestAccess(None);
         let result = connect_message.as_str();
         assert_eq!("40", result.as_str());
-        if let MySocketIoMessage::Connect(result) =
+        if let MySocketIoMessage::RequestAccess(result) =
             MySocketIoMessage::parse(result.as_str()).unwrap()
         {
             assert_eq!(result.is_none(), true);
@@ -112,13 +130,13 @@ mod test {
             panic!("Should not be here");
         }
 
-        let connect_message = MySocketIoMessage::Connect(Some("/admin".to_string()));
+        let connect_message = MySocketIoMessage::RequestAccess(Some("/admin".to_string()));
 
         let result = connect_message.as_str();
 
         assert_eq!("40/admin,", result.as_str());
 
-        if let MySocketIoMessage::Connect(result) =
+        if let MySocketIoMessage::RequestAccess(result) =
             MySocketIoMessage::parse(result.as_str()).unwrap()
         {
             if let Some(nsp) = result {
@@ -127,5 +145,22 @@ mod test {
         } else {
             panic!("Should not be here");
         }
+    }
+
+    #[test]
+    fn test_grand_access() {
+        let grant_access = MySocketIoMessage::GrandAccess(GrandAccessData {
+            nsp: None,
+            sid: "123".to_string(),
+        });
+
+        assert_eq!("40{\"sid\":\"123\"}", grant_access.as_str().as_str());
+
+        let grant_access = MySocketIoMessage::GrandAccess(GrandAccessData {
+            nsp: Some("/admin".to_string()),
+            sid: "123".to_string(),
+        });
+
+        assert_eq!("40/admin,{\"sid\":\"123\"}", grant_access.as_str().as_str());
     }
 }
