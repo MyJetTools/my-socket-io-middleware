@@ -45,13 +45,9 @@ impl MySocketIoEngineMiddleware {
         }
     }
 
-    pub async fn register_socket_io(
-        &self,
-        namespace: String,
-        socket_io: Arc<dyn MySocketIo + Send + Sync + 'static>,
-    ) {
+    pub async fn register_socket_io(&self, socket_io: Arc<dyn MySocketIo + Send + Sync + 'static>) {
         let mut write_access = self.registered_sockets.lock().await;
-        write_access.insert(namespace, socket_io);
+        write_access.insert(socket_io.get_nsp().to_string(), socket_io);
     }
 
     async fn get_socket_id(&self) -> i64 {
