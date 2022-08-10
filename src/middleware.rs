@@ -8,8 +8,7 @@ use my_http_server::{
 use tokio::sync::Mutex;
 
 use crate::{
-    MySocketIo, MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList,
-    SocketIoSettings, WebSocketCallbacks,
+    MySocketIo, MySocketIoConnectionsCallbacks, SocketIoList, SocketIoSettings, WebSocketCallbacks,
 };
 
 pub struct MySocketIoEngineMiddleware {
@@ -93,8 +92,13 @@ impl HttpServerMiddleware for MySocketIoEngineMiddleware {
         }
 
         if ctx.request.method == Method::GET {
-            if let Some(result) =
-                handle_get_request(ctx, &self.connections_callback, &self.socket_io_list).await
+            if let Some(result) = handle_get_request(
+                ctx,
+                &self.connections_callback,
+                &self.socket_io_list,
+                &self.settings,
+            )
+            .await
             {
                 return result;
             }
@@ -112,6 +116,7 @@ async fn handle_get_request(
     ctx: &mut HttpContext,
     connections_callback: &Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
     socket_io_list: &Arc<SocketIoList>,
+    settings: &Arc<SocketIoSettings>,
 ) -> Option<Result<HttpOkResult, HttpFailResult>> {
     let query = ctx.request.get_query_string();
 
@@ -124,41 +129,23 @@ async fn handle_get_request(
     let sid = query.get_optional("sid");
 
     if let Some(sid) = sid {
-        let mut content = Vec::new();
-        content.extend_from_slice("40{\"sid\":\"".as_bytes());
-        content.extend_from_slice(sid.value.as_bytes());
-        content.extend_from_slice("\"}".as_bytes());
-
         return Some(
             HttpOutput::Content {
                 headers: None,
                 content_type: Some(WebContentType::Text),
-                content,
+                content: crate::my_socket_io_messages::compile_connect_payload(sid.value),
             }
             .into_ok_result(true)
             .into(),
         );
     } else {
-        let sid = uuid::Uuid::new_v4().to_string();
-
-        let sid = sid.replace("-", "")[..8].to_string();
-
-        let result = super::models::compile_negotiate_response(sid.as_str());
-
-        let socket_io = MySocketIoConnection::new(sid);
-        let socket_io_connection = Arc::new(socket_io);
-
-        connections_callback
-            .connected(socket_io_connection.clone())
-            .await
-            .unwrap();
-
-        socket_io_list.add_socket_io(socket_io_connection).await;
+        let result =
+            crate::process_connect(connections_callback, socket_io_list, settings, None).await;
 
         let result = HttpOutput::Content {
             headers: None,
             content_type: Some(WebContentType::Text),
-            content: result.to_owned().into_bytes(),
+            content: result.into_bytes(),
         }
         .into_ok_result(true)
         .into();

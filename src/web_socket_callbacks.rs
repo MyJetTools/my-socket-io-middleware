@@ -7,8 +7,9 @@ use my_json::json_reader::array_parser::ArrayToJsonObjectsSplitter;
 use tokio::sync::Mutex;
 
 use crate::{
-    MySocketIo, MySocketIoConnection, MySocketIoConnectionsCallbacks, MySocketIoMessage,
-    MySocketIoTextMessage, SocketIoList, SocketIoSettings,
+    my_socket_io_messages::MySocketIoMessage, my_socket_io_messages::MySocketIoTextPayload,
+    MySocketIo, MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList,
+    SocketIoSettings,
 };
 
 pub struct WebSocketCallbacks {
@@ -32,7 +33,7 @@ impl WebSocketCallbacks {
     async fn callback_message(
         &self,
         socket_io: &Arc<MySocketIoConnection>,
-        msg: MySocketIoTextMessage,
+        msg: MySocketIoTextPayload,
     ) {
         let nsp_str = if let Some(nsp) = &msg.nsp { nsp } else { "/" };
 
@@ -58,7 +59,7 @@ impl WebSocketCallbacks {
             let event_data = event_data.unwrap();
 
             if let Some(ack_data) = socket.on(&event_name, &event_data).await {
-                let ack_contract = MySocketIoMessage::Ack(MySocketIoTextMessage {
+                let ack_contract = MySocketIoMessage::Ack(MySocketIoTextPayload {
                     nsp: msg.nsp,
                     data: ack_data,
                     id: msg.id,
@@ -93,11 +94,15 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
                     ));
                 }
                 None => {
-                    my_web_socket
-                        .send_message(Message::Text(
-                            format!("SocketIo not found with id {}", sid.value).to_string(),
-                        ))
-                        .await;
+                    let result = crate::process_connect(
+                        &self.connections_callback,
+                        &self.socket_io_list,
+                        &self.settings,
+                        Some(my_web_socket.clone()),
+                    )
+                    .await;
+
+                    my_web_socket.send_message(Message::Text(result)).await;
                 }
             };
         }
@@ -132,16 +137,16 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
         }
 
         if let WebSocketMessage::String(value) = &message {
-            if value == crate::ENGINE_IO_PING_PROBE_PAYLOAD {
+            if value == crate::my_socket_io_messages::ENGINE_IO_PING_PROBE_PAYLOAD {
                 my_web_socket
                     .send_message(Message::Text(
-                        crate::ENGINE_IO_PONG_PROBE_PAYLOAD.to_string(),
+                        crate::my_socket_io_messages::ENGINE_IO_PONG_PROBE_PAYLOAD.to_string(),
                     ))
                     .await;
                 return;
             }
 
-            if value == crate::ENGINE_IO_UPGRADE_PAYLOAD {
+            if value == crate::my_socket_io_messages::ENGINE_IO_UPGRADE_PAYLOAD {
                 if let Some(socket_io) = socket_io.as_ref() {
                     socket_io.upgrade_to_websocket().await;
                 } else {

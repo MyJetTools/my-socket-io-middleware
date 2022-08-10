@@ -8,7 +8,7 @@ use rust_extensions::{
 };
 use tokio::sync::Mutex;
 
-use crate::MySocketIoMessage;
+use crate::my_socket_io_messages::*;
 
 pub struct MySocketIoSingleThreaded {
     web_socket: Option<Arc<MyWebSocket>>,
@@ -26,10 +26,10 @@ pub struct MySocketIoConnection {
 }
 
 impl MySocketIoConnection {
-    pub fn new(id: String) -> Self {
+    pub fn new(id: String, web_socket: Option<Arc<MyWebSocket>>) -> Self {
         Self {
             single_threaded: Mutex::new(MySocketIoSingleThreaded {
-                web_socket: None,
+                web_socket,
                 long_pooling: None,
                 updgraded_to_websocket: false,
             }),
