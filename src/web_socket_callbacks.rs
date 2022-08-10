@@ -7,13 +7,16 @@ use my_json::json_reader::array_parser::ArrayToJsonObjectsSplitter;
 use tokio::sync::Mutex;
 
 use crate::{
-    MySocketIo, MySocketIoConnection, MySocketIoMessage, MySocketIoTextMessage, SocketIoList,
+    MySocketIo, MySocketIoConnection, MySocketIoConnectionsCallbacks, MySocketIoMessage,
+    MySocketIoTextMessage, SocketIoList, SocketIoSettings,
 };
 
 pub struct WebSocketCallbacks {
     pub socket_io_list: Arc<SocketIoList>,
     pub registered_sockets:
         Arc<Mutex<HashMap<String, Arc<dyn MySocketIo + Send + Sync + 'static>>>>,
+    pub connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
+    pub settings: Arc<SocketIoSettings>,
 }
 
 impl WebSocketCallbacks {
@@ -28,7 +31,7 @@ impl WebSocketCallbacks {
     }
     async fn callback_message(
         &self,
-        socket_io: Arc<MySocketIoConnection>,
+        socket_io: &Arc<MySocketIoConnection>,
         msg: MySocketIoTextMessage,
     ) {
         let nsp_str = if let Some(nsp) = &msg.nsp { nsp } else { "/" };
@@ -76,9 +79,18 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
         if let Some(query_string) = my_web_socket.get_query_string() {
             let sid = query_string.get_required("sid")?;
 
-            match self.socket_io_list.get_by_socket_io_id(sid.value).await {
+            match self
+                .socket_io_list
+                .assign_web_socket_to_socket_io(sid.value, my_web_socket.clone())
+                .await
+            {
                 Some(socket_io) => {
-                    socket_io.add_web_socket(my_web_socket).await;
+                    tokio::spawn(super::socket_io_livness_loop::start(
+                        self.connections_callback.clone(),
+                        self.socket_io_list.clone(),
+                        socket_io,
+                        self.settings.get_ping_timeout(),
+                    ));
                 }
                 None => {
                     my_web_socket
@@ -102,40 +114,48 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
             .await;
 
         if let Some(socket_io) = find_result {
-            socket_io.disconnect().await;
+            crate::process_disconnect(&self.socket_io_list, &socket_io, &self.connections_callback)
+                .await;
         }
     }
     async fn on_message(&self, my_web_socket: Arc<MyWebSocket>, message: WebSocketMessage) {
         #[cfg(feature = "debug_ws")]
         println!("Websocket{}, MSG: {:?}", my_web_socket.id, message);
 
+        let socket_io = self
+            .socket_io_list
+            .get_by_web_socket_id(my_web_socket.id)
+            .await;
+
+        if let Some(socket_io_ref) = socket_io.as_ref() {
+            socket_io_ref.update_incoming_activity();
+        }
+
         if let WebSocketMessage::String(value) = &message {
-            if value == "2probe" {
+            if value == crate::ENGINE_IO_PING_PROBE_PAYLOAD {
                 my_web_socket
-                    .send_message(Message::Text("3probe".to_string()))
+                    .send_message(Message::Text(
+                        crate::ENGINE_IO_PONG_PROBE_PAYLOAD.to_string(),
+                    ))
                     .await;
                 return;
             }
 
-            if value == "5" {
-                tokio::spawn(super::socket_io_ping_loop::start(my_web_socket.clone()));
-                if let Some(socket_io) = self
-                    .socket_io_list
-                    .get_by_web_socket_id(my_web_socket.id)
-                    .await
-                {
+            if value == crate::ENGINE_IO_UPGRADE_PAYLOAD {
+                if let Some(socket_io) = socket_io.as_ref() {
                     socket_io.upgrade_to_websocket().await;
+                } else {
+                    my_web_socket
+                        .send_message(Message::Text("SocketIo not found".to_string()))
+                        .await;
+                    my_web_socket.disconnect().await;
                 }
+                return;
             }
 
-            if value.starts_with("42") {
-                let message = MySocketIoMessage::parse(value.as_str());
+            if let Some(message) = MySocketIoMessage::parse(value.as_str()) {
                 if let MySocketIoMessage::Message(message) = message {
-                    if let Some(socket_io_connection) = self
-                        .socket_io_list
-                        .get_by_web_socket_id(my_web_socket.id)
-                        .await
-                    {
+                    if let Some(socket_io_connection) = socket_io.as_ref() {
                         self.callback_message(socket_io_connection, message).await;
                     }
                 }

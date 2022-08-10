@@ -1,3 +1,7 @@
+pub const ENGINE_IO_PING_PROBE_PAYLOAD: &str = "2probe";
+pub const ENGINE_IO_PONG_PROBE_PAYLOAD: &str = "3probe";
+pub const ENGINE_IO_UPGRADE_PAYLOAD: &str = "5";
+
 pub struct MySocketIoTextMessage {
     pub nsp: Option<String>,
     pub data: String,
@@ -56,16 +60,16 @@ impl MySocketIoMessage {
         }
     }
 
-    pub fn parse(str: &str) -> Self {
+    pub fn parse(str: &str) -> Option<Self> {
         if str.starts_with("42") {
-            return Self::Message(MySocketIoTextMessage::parse(str.as_bytes()));
+            return Some(Self::Message(MySocketIoTextMessage::parse(str.as_bytes())));
         }
 
         if str.starts_with("43") {
-            return Self::Message(MySocketIoTextMessage::parse(str.as_bytes()));
+            return Some(Self::Message(MySocketIoTextMessage::parse(str.as_bytes())));
         }
 
-        panic!("Can not parse message: {}", str)
+        None
     }
 }
 
@@ -132,7 +136,7 @@ mod test {
     #[test]
     fn test_parse_message() {
         let src = "420[\"chat message\",\"123\",{\"name\":\"chat\"}]";
-        let message = MySocketIoMessage::parse(src);
+        let message = MySocketIoMessage::parse(src).unwrap();
 
         if let MySocketIoMessage::Message(message) = message {
             assert_eq!(message.nsp.is_none(), true);

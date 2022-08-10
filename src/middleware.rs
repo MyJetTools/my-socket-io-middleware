@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     MySocketIo, MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList,
-    WebSocketCallbacks,
+    SocketIoSettings, WebSocketCallbacks,
 };
 
 pub struct MySocketIoEngineMiddleware {
@@ -19,6 +19,7 @@ pub struct MySocketIoEngineMiddleware {
     socket_io_list: Arc<SocketIoList>,
     registered_sockets: Arc<Mutex<HashMap<String, Arc<dyn MySocketIo + Send + Sync + 'static>>>>,
     connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
+    pub settings: Arc<SocketIoSettings>,
 }
 
 impl MySocketIoEngineMiddleware {
@@ -27,6 +28,7 @@ impl MySocketIoEngineMiddleware {
     ) -> Self {
         let registered_sockets = Arc::new(Mutex::new(HashMap::new()));
         let socket_io_list = Arc::new(SocketIoList::new());
+        let settings = Arc::new(SocketIoSettings::default());
         Self {
             socket_io_list: socket_io_list.clone(),
 
@@ -34,10 +36,13 @@ impl MySocketIoEngineMiddleware {
             web_socket_callback: Arc::new(WebSocketCallbacks {
                 socket_io_list,
                 registered_sockets: registered_sockets.clone(),
+                connections_callback: connections_callback.clone(),
+                settings: settings.clone(),
             }),
             socket_id: Mutex::new(0),
             registered_sockets,
             connections_callback,
+            settings,
         }
     }
 
