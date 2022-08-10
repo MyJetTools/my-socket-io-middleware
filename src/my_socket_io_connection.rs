@@ -46,7 +46,7 @@ impl MySocketIoConnection {
 
         write_access.updgraded_to_websocket = true;
         if let Some(mut removed) = write_access.long_pooling.take() {
-            removed.set_error(MySocketIoMessage::Disconnect.to_string());
+            removed.set_error(MySocketIoMessage::Disconnect.as_str().to_string());
         }
 
         self.has_web_socket
@@ -80,7 +80,7 @@ impl MySocketIoConnection {
 
         if let Some(web_socket) = web_socket {
             web_socket
-                .send_message(Message::Text(message.to_string()))
+                .send_message(Message::Text(message.as_str().to_string()))
                 .await;
         }
     }
