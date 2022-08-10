@@ -15,6 +15,6 @@ pub use my_socket_io_connection::MySocketIoConnection;
 pub use my_socket_io_connections_callbacks::MySocketIoConnectionsCallbacks;
 use process_connect::process_connect;
 use process_disconnect::process_disconnect;
-pub use socket_io_list::SocketIoList;
+use socket_io_list::SocketIoList;
 pub use socket_io_settings::SocketIoSettings;
 pub use web_socket_callbacks::WebSocketCallbacks;
