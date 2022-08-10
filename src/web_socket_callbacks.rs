@@ -78,7 +78,22 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
         println!("connected web_socket:{}", my_web_socket.id);
 
         if let Some(query_string) = my_web_socket.get_query_string() {
-            let sid = query_string.get_required("sid")?;
+            let sid = query_string.get_optional("sid");
+
+            if sid.is_none() {
+                let result = crate::process_connect(
+                    &self.connections_callback,
+                    &self.socket_io_list,
+                    &self.settings,
+                    Some(my_web_socket.clone()),
+                )
+                .await;
+
+                my_web_socket.send_message(Message::Text(result)).await;
+                return Ok(());
+            }
+
+            let sid = sid.unwrap();
 
             match self
                 .socket_io_list
@@ -94,15 +109,14 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
                     ));
                 }
                 None => {
-                    let result = crate::process_connect(
-                        &self.connections_callback,
-                        &self.socket_io_list,
-                        &self.settings,
-                        Some(my_web_socket.clone()),
-                    )
-                    .await;
+                    my_web_socket
+                        .send_message(Message::Text(format!(
+                            "Socket.IO with id {} is not found",
+                            sid.value,
+                        )))
+                        .await;
 
-                    my_web_socket.send_message(Message::Text(result)).await;
+                    return Ok(());
                 }
             };
         }
