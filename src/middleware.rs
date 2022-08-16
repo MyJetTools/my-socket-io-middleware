@@ -5,11 +5,12 @@ use my_http_server::{
     HttpContext, HttpFailResult, HttpOkResult, HttpOutput, HttpServerMiddleware,
     HttpServerRequestFlow, RequestData, WebContentType,
 };
+use socket_io_utils::SocketIoSettings;
 use tokio::sync::Mutex;
 
 use crate::{
     namespaces::SocketIoNameSpaces, MySocketIo, MySocketIoConnectionsCallbacks, SocketIoList,
-    SocketIoSettings, WebSocketCallbacks,
+    WebSocketCallbacks,
 };
 
 pub struct MySocketIoEngineMiddleware {
@@ -77,7 +78,7 @@ impl HttpServerMiddleware for MySocketIoEngineMiddleware {
                 let id = self.get_socket_id().await;
                 return my_http_server_web_sockets::handle_web_socket_upgrade(
                     request,
-                    &self.web_socket_callback,
+                    self.web_socket_callback.clone(),
                     id,
                     ctx.request.addr,
                 )
@@ -129,7 +130,7 @@ async fn handle_get_request(
             HttpOutput::Content {
                 headers: None,
                 content_type: Some(WebContentType::Text),
-                content: crate::my_socket_io_messages::compile_connect_payload(sid.value),
+                content: socket_io_utils::my_socket_io_messages::compile_connect_payload(sid.value),
             }
             .into_ok_result(true)
             .into(),

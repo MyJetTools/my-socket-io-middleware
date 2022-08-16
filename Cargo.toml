@@ -11,6 +11,7 @@ debug_ws = []
 [dependencies]
 my-http-server = { branch = "0.2.6", git = "https://github.com/MyJetTools/my-http-server.git" }
 my-http-server-web-sockets = { branch = "0.1.0", git = "https://github.com/MyJetTools/my-http-server-web-sockets.git" }
+socket-io-utils = { branch = "0.1.0", git = "https://github.com/MyJetTools/socket-io-utils.git" }
 rust-extensions = { branch = "0.1.1", git = "https://github.com/MyJetTools/rust-extensions.git" }
 my-json = { branch = "0.1.1", git = "https://github.com/MyJetTools/my-json.git" }
 tokio = { version = "*", features = ["full"] }

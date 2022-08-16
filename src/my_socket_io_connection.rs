@@ -8,7 +8,7 @@ use rust_extensions::{
 };
 use tokio::sync::Mutex;
 
-use crate::my_socket_io_messages::*;
+use socket_io_utils::my_socket_io_messages::*;
 
 pub struct MySocketIoSingleThreaded {
     web_socket: Option<Arc<MyWebSocket>>,

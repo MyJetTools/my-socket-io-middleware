@@ -4,12 +4,16 @@ use hyper_tungstenite::tungstenite::Message;
 use my_http_server::HttpFailResult;
 use my_http_server_web_sockets::{MyWebSocket, WebSocketMessage};
 use my_json::json_reader::array_parser::ArrayToJsonObjectsSplitter;
+use socket_io_utils::SocketIoSettings;
 
 use crate::{
+    namespaces::SocketIoNameSpaces, MySocketIoConnection, MySocketIoConnectionsCallbacks,
+    SocketIoList,
+};
+
+use socket_io_utils::{
     my_socket_io_messages::MySocketIoMessage,
     my_socket_io_messages::{GrandAccessData, MySocketIoTextPayload},
-    namespaces::SocketIoNameSpaces,
-    MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList, SocketIoSettings,
 };
 
 const DEFAULT_NAMESPACE: &str = "/";
@@ -72,7 +76,7 @@ impl WebSocketCallbacks {
 }
 
 #[async_trait::async_trait]
-impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
+impl my_http_server_web_sockets::MyWebSocketCallback for WebSocketCallbacks {
     async fn connected(&self, my_web_socket: Arc<MyWebSocket>) -> Result<(), HttpFailResult> {
         #[cfg(feature = "debug_ws")]
         println!("connected web_socket:{}", my_web_socket.id);
@@ -160,16 +164,17 @@ impl my_http_server_web_sockets::MyWebSockeCallback for WebSocketCallbacks {
         }
 
         if let WebSocketMessage::String(value) = &message {
-            if value == crate::my_socket_io_messages::ENGINE_IO_PING_PROBE_PAYLOAD {
+            if value == socket_io_utils::my_socket_io_messages::ENGINE_IO_PING_PROBE_PAYLOAD {
                 my_web_socket
                     .send_message(Message::Text(
-                        crate::my_socket_io_messages::ENGINE_IO_PONG_PROBE_PAYLOAD.to_string(),
+                        socket_io_utils::my_socket_io_messages::ENGINE_IO_PONG_PROBE_PAYLOAD
+                            .to_string(),
                     ))
                     .await;
                 return;
             }
 
-            if value == crate::my_socket_io_messages::ENGINE_IO_UPGRADE_PAYLOAD {
+            if value == socket_io_utils::my_socket_io_messages::ENGINE_IO_UPGRADE_PAYLOAD {
                 if let Some(socket_io) = socket_io.as_ref() {
                     socket_io.upgrade_to_websocket().await;
                 } else {

@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use my_http_server_web_sockets::MyWebSocket;
+use socket_io_utils::SocketIoSettings;
 
-use crate::{MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList, SocketIoSettings};
+use crate::{MySocketIoConnection, MySocketIoConnectionsCallbacks, SocketIoList};
 
 pub async fn process_connect(
     connections_callback: &Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
@@ -14,7 +15,8 @@ pub async fn process_connect(
 
     let sid = sid.replace("-", "")[..8].to_string();
 
-    let result = crate::my_socket_io_messages::compile_negotiate_response(sid.as_str(), settings);
+    let result =
+        socket_io_utils::my_socket_io_messages::compile_negotiate_response(sid.as_str(), settings);
 
     let socket_io = MySocketIoConnection::new(sid, web_socket);
     let socket_io_connection = Arc::new(socket_io);
