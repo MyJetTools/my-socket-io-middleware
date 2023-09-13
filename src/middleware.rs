@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use hyper::Method;
 use my_http_server::{
@@ -21,6 +21,7 @@ pub struct MySocketIoEngineMiddleware {
     registered_sockets: Arc<SocketIoNameSpaces>,
     connections_callback: Arc<dyn MySocketIoConnectionsCallbacks + Send + Sync + 'static>,
     pub settings: Arc<SocketIoSettings>,
+    disconnect_timeout: Duration,
 }
 
 impl MySocketIoEngineMiddleware {
@@ -44,6 +45,7 @@ impl MySocketIoEngineMiddleware {
             registered_sockets,
             connections_callback,
             settings,
+            disconnect_timeout: Duration::from_secs(60),
         }
     }
 
@@ -65,7 +67,7 @@ impl HttpServerMiddleware for MySocketIoEngineMiddleware {
         ctx: &mut HttpContext,
         get_next: &mut HttpServerRequestFlow,
     ) -> Result<HttpOkResult, HttpFailResult> {
-        if ctx.request.get_path_lower_case() != self.path_prefix.as_str() {
+        if ctx.request.get_path() != self.path_prefix.as_str() {
             return get_next.next(ctx).await;
         }
 
@@ -81,6 +83,7 @@ impl HttpServerMiddleware for MySocketIoEngineMiddleware {
                     self.web_socket_callback.clone(),
                     id,
                     ctx.request.addr,
+                    self.disconnect_timeout,
                 )
                 .await;
             }
